@@ -1,9 +1,7 @@
-torch
-torchvision
 opencv-python
 matplotlib
 Pillow
-numpy==1.26  # numpy 2.0 not compatible at the moment
+numpy==1.26
 scipy
 scikit-learn
 faiss-gpu-cu12
@@ -12,3 +10,4 @@ tifffile
 argparse
 PyYAML
 pandas
+xformers
