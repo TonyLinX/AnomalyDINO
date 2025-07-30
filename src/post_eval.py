@@ -35,9 +35,21 @@ def parse_dataset_files(object_name, dataset_base_dir, anomaly_maps_dir, dataset
     prediction_filenames = []
 
     # Test images are located here.
-    test_dir = path.join(dataset_base_dir, object_name, 'test')
-    gt_base_dir = path.join(dataset_base_dir, object_name, 'ground_truth')
-    anomaly_maps_base_dir = path.join(anomaly_maps_dir, object_name, 'test')
+    if dataset == "MVTec2":
+        test_dir = path.join(dataset_base_dir, object_name, 'test_public')
+        gt_base_dir = path.join(dataset_base_dir, object_name, 'test_public', 'ground_truth')
+        anomaly_maps_base_dir = path.join(anomaly_maps_dir, object_name, 'test_public')
+        ext = '.png'
+    elif dataset == "VisA":
+        test_dir = path.join(dataset_base_dir, object_name, 'test')
+        gt_base_dir = path.join(dataset_base_dir, object_name, 'ground_truth')
+        anomaly_maps_base_dir = path.join(anomaly_maps_dir, object_name, 'test')
+        ext = '.JPG'
+    else:
+        test_dir = path.join(dataset_base_dir, object_name, 'test')
+        gt_base_dir = path.join(dataset_base_dir, object_name, 'ground_truth')
+        anomaly_maps_base_dir = path.join(anomaly_maps_dir, object_name, 'test')
+        ext = '.png'
 
     # List all ground truth and corresponding anomaly images.
     for subdir in listdir(str(test_dir)):
@@ -49,12 +61,13 @@ def parse_dataset_files(object_name, dataset_base_dir, anomaly_maps_dir, dataset
         test_images = [path.splitext(file)[0]
                        for file
                        in listdir(path.join(test_dir, subdir))
-                       if path.splitext(file)[1] == ('.png' if dataset == "MVTec" else '.JPG')]
+                       if path.splitext(file)[1] == ext]
 
         # If subdir is not 'good', derive corresponding GT names.
         if subdir != 'good':
+            suffix = '.png' if dataset == 'VisA' else '_mask.png'
             gt_filenames.extend(
-                [path.join(gt_base_dir, subdir, file + '_mask.png' if dataset == "MVTec" else file + '.png')
+                [path.join(gt_base_dir, subdir, file + suffix)
                  for file in test_images])
         else:
             # No ground truth maps exist for anomaly-free images.
@@ -336,11 +349,22 @@ def eval_segmentation(gt_filenames, prediction_filenames, pro_integration_limit=
     auroc_px = roc_auc_score(ground_truth, predictions)
     print(f"AUROC (pixel-level): {auroc_px}", end=" -- ")
 
-    # # Compute pixel-level Average Precision (AP)
-    precisions, recalls, thresholds = precision_recall_curve(ground_truth, predictions)
-    f1_scores = (2 * precisions * recalls) / (precisions + recalls)
-    f1_px = np.max(f1_scores[np.isfinite(f1_scores)])
+    # Compute pixel-level Average Precision (AP)
+    # precisions, recalls, thresholds = precision_recall_curve(ground_truth, predictions)
+    # f1_scores = (2 * precisions * recalls) / (precisions + recalls)
+    # f1_px = np.max(f1_scores[np.isfinite(f1_scores)])
 
+    precisions, recalls, thresholds = precision_recall_curve(ground_truth, predictions)
+    den = precisions + recalls
+    f1_scores = np.divide(
+        2 * precisions * recalls, den,
+        out=np.zeros_like(precisions),  # 分母為 0 時回傳 0
+        where=den > 0
+    )
+
+    f1_px = f1_scores.max()
+    print(f"F1 (pixel-level / F1-max): {f1_px:.6f}")
+    
     print(f"F1 (pixel-level): {f1_px}")
 
     # optionally delete all tiff files in the anomaly_maps_dir to save disk space
@@ -400,10 +424,16 @@ def eval_classification(gt_filenames, prediction_filenames, aggregation_statisti
   
     # Compute image_level F1 score
     precisions, recalls, thresholds = precision_recall_curve(binary_labels, predictions)
-    f1_scores = (2 * precisions * recalls) / (precisions + recalls)
-    f1_clf = np.max(f1_scores[np.isfinite(f1_scores)])
-    
-    print(f"F1 (image-level): {f1_clf}")
+
+    den = precisions + recalls
+    f1_scores = np.divide(
+        2 * precisions * recalls, den,
+        out=np.zeros_like(den),   # 當分母為 0 時回傳 0
+        where=den > 0
+    )
+
+    f1_clf = f1_scores.max()
+    print(f"F1 (image-level, F1-max): {f1_clf:.6f}")
     return auroc_clf, ap_clf, f1_clf
 
 
@@ -412,6 +442,8 @@ def get_objects_from_dataset(dataset):
         objects = ["bottle", "cable", "capsule", "carpet", "grid", "hazelnut", "leather", "metal_nut", "pill", "screw", "tile", "toothbrush", "transistor", "wood", "zipper"]
     elif dataset == "VisA":
         objects = ["candle", "capsules", "cashew", "chewinggum", "fryum", "macaroni1", "macaroni2", "pcb1", "pcb2", "pcb3", "pcb4", "pipe_fryum"]
+    elif dataset == "MVTec2":
+        objects = ["can", "fabric", "fruit_jelly", "rice", "sheet_metal", "vial", "wallplugs", "walnuts"]
     return objects
     
 
@@ -419,7 +451,7 @@ def eval_finished_run(dataset, dataset_base_dir, anomaly_maps_dir, output_dir, s
     """
     Evaluate the results of a finished run on the MVTec AD dataset.
     Arguments:
-    - dataset: Name of the dataset to evaluate (either "MVTec" or "VisA").
+    - dataset: Name of the dataset to evaluate (either "MVTec", "VisA", or "MVTec2").
     - dataset_base_dir: Base directory of the MVTec AD dataset.
     - anomaly_maps_dir: Base directory where anomaly maps are located.
     - output_dir: Directory where to store the evaluation results.
@@ -457,8 +489,9 @@ def eval_finished_run(dataset, dataset_base_dir, anomaly_maps_dir, output_dir, s
                 dataset_base_dir=dataset_base_dir,
                 anomaly_maps_dir=anomaly_maps_dir,
                 dataset=dataset)
-        
-        print(f"Number of images: {len(gt_filenames)}")
+            
+        print(f"計算 {obj} 所有圖片的指標 ============")
+        print(f"Number of testing images: {len(gt_filenames)}")
         
         if eval_segm:
             # Evaluate segmentation performance

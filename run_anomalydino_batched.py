@@ -3,6 +3,7 @@ import os
 from src.detection import augment_image
 from src.backbones import get_model
 from src.utils import get_dataset_info
+from MVTecAD2_public_code_utils.mvtec_ad_2_public_offline import MVTecAD2
 
 from tqdm.auto import tqdm, trange
 import matplotlib.pyplot as plt
@@ -65,10 +66,11 @@ def calculate_cosine_distances(features_all, sample_index, device, quantile = 0.
 
 
 def evaluate_ad_batched(model,
-                        data_root, 
+                        data_root,
                         plots_dir,
                         masking_default,
                         device,
+                        dataset,
                         save_examples = True):
     AUROCs = {}
     
@@ -92,14 +94,19 @@ def evaluate_ad_batched(model,
         gt_label = []
         grid_sizes = []
 
-        img_test_folder = f"{data_root}/{object_name}/test/"
+        test_split = "test_public" if dataset == "MVTec2" else "test"
+        img_test_folder = f"{data_root}/{object_name}/{test_split}/"
 
         with torch.inference_mode():
             # read in all test samples (with label information for later evaluation)
             for type_anomaly in type_anomalies:
-                data_dir = img_test_folder + f"{type_anomaly}"
-                for img_test_nr in tqdm(sorted(os.listdir(data_dir)), desc=f"Load test set: {object_name} ({type_anomaly})", leave=False):
-                    img_test = f"{data_dir}/{img_test_nr}"
+                if dataset == "MVTec2":
+                    ds_test = MVTecAD2(object_name, "test_public")
+                    test_paths = [p for p in ds_test.image_paths if f"/{type_anomaly}/" in p]
+                else:
+                    data_dir = img_test_folder + f"{type_anomaly}"
+                    test_paths = [f"{data_dir}/{p}" for p in sorted(os.listdir(data_dir))]
+                for img_test in tqdm(test_paths, desc=f"Load test set: {object_name} ({type_anomaly})", leave=False):
                     img_test = cv2.cvtColor(cv2.imread(img_test, cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
                     
                     image_tensor, grid_size = model.prepare_image(img_test)
@@ -185,10 +192,12 @@ if __name__=="__main__":
         yaml.dump(vars(args), f)
     
     AUROCs = evaluate_ad_batched(model,
-                                 args.data_root, 
-                                 plot_dir, save_examples = True, 
+                                 args.data_root,
+                                 plot_dir,
+                                 masking_default = masking_default,
                                  device = args.device,
-                                 masking_default = masking_default)
+                                 dataset = args.dataset,
+                                 save_examples = True)
     
     df = pd.DataFrame.from_dict(AUROCs, orient='index', columns=['AUROC'])
 

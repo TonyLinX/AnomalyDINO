@@ -6,12 +6,12 @@ from tqdm import trange
 
 import csv
 
-from src.utils import get_dataset_info 
+from src.utils import get_dataset_info
 from src.detection import run_anomaly_detection
 from src.post_eval import eval_finished_run
 from src.visualize import create_sample_plots
 from src.backbones import get_model
-
+from MVTecAD2_public_code_utils.mvtec_ad_2_public_offline import MVTecAD2
 
 class IntListAction(Action):
     """
@@ -43,10 +43,12 @@ def parse_args():
     parser.add_argument("--just_seed", type=int, default=None)
     parser.add_argument('--save_examples', default=True, action=argparse.BooleanOptionalAction, help="Save example plots.")
     parser.add_argument("--eval_clf", default=True, action=argparse.BooleanOptionalAction, help="Evaluate anomaly detection performance.")
-    parser.add_argument("--eval_segm", default=False, action=argparse.BooleanOptionalAction, help="Evaluate anomaly segmentation performance.")
+    parser.add_argument("--eval_segm", default=True, action=argparse.BooleanOptionalAction, help="Evaluate anomaly segmentation performance.")
     parser.add_argument("--device", default='cuda:0')
     parser.add_argument("--warmup_iters", type=int, default=25, help="Number of warmup iterations, relevant when benchmarking inference time.")
-
+    parser.add_argument("--fpr", type=float, default=0.30, help="AUPRO False Postive Rate.")
+    parser.add_argument("--debug", default=False, help="Debug.")
+    
     parser.add_argument("--tag", help="Optional tag for the saving directory.")
 
     args = parser.parse_args()
@@ -60,6 +62,7 @@ if __name__=="__main__":
     print(f"Requested to run {len(args.shots)} (different) shot(s):", args.shots)
     print(f"Requested to repeat the experiments {args.num_seeds} time(s).")
 
+    # 準備 Dataset，哪一個 dataset, 種類有哪些, 異常type, 前處理設定
     objects, object_anomalies, masking_default, rotation_default = get_dataset_info(args.dataset, args.preprocess)
 
     # set CUDA device
@@ -76,9 +79,13 @@ if __name__=="__main__":
         seeds = range(args.num_seeds)
     
     for shot in list(args.shots):
-        save_examples = args.save_examples
-
-        results_dir = f"results_{args.dataset}/{args.model_name}_{args.resolution}/{shot}-shot_preprocess={args.preprocess}"
+        # 把推論出的 anomaly map 存成圖片
+        save_examples = args.save_examples 
+        
+        if args.debug == False:
+            results_dir = f"results_{args.dataset}/{args.model_name}_{args.resolution}/{shot}-shot_preprocess={args.preprocess}_AUPRO={args.fpr}_k={args.k_neighbors}"
+        else:
+            results_dir = f"results_{args.dataset}/debug/{args.model_name}_{args.resolution}/{shot}-shot_preprocess={args.preprocess}_AUPRO={args.fpr}_k={args.k_neighbors}"
         
         if args.tag != None:
             results_dir += "_" + args.tag
@@ -110,6 +117,7 @@ if __name__=="__main__":
                     writer = csv.writer(file)
                     writer.writerow(["Object", "Sample", "Anomaly_Score", "MemoryBank_Time", "Inference_Time"])
 
+                    # 開始處理某一個物件
                     for object_name in objects:
                         
                         if save_examples:
@@ -117,11 +125,26 @@ if __name__=="__main__":
                             os.makedirs(f"{plots_dir}/{object_name}/examples", exist_ok=True)
 
                         # CUDA warmup
+                        '''
+                        為何要進行 CUDA warmup？
+                        GPU 預熱（Warmup） 主要是為了提高訓練初期的效率。當
+                        我們第一次使用 GPU 計算時，CUDA 可能會花一些時間來初始化，
+                        這可能導致模型訓練的前幾步執行較慢。
+
+                        這段代碼會使用 GPU 運行一些簡單的操作（例如加載圖像、進行前向傳遞），
+                        這有助於讓 GPU 進行初始化，避免模型在正式訓練時遇到延遲。
+                        '''
                         for _ in trange(args.warmup_iters, desc="CUDA warmup", leave=False):
-                            first_image = os.listdir(f"{args.data_root}/{object_name}/train/good")[0]
-                            img_tensor, grid_size = model.prepare_image(f"{args.data_root}/{object_name}/train/good/{first_image}")
+                            if args.dataset == "MVTec2":
+                                warmup_ds = MVTecAD2(object_name, "train")
+                                first_image = warmup_ds.image_paths[0]
+                            else:
+                                first_image = f"{args.data_root}/{object_name}/train/good/" + os.listdir(f"{args.data_root}/{object_name}/train/good")[0]
+                            img_tensor, grid_size = model.prepare_image(first_image)
+                            # first_image = os.listdir(f"{args.data_root}/{object_name}/train/good")[0]
+                            # img_tensor, grid_size = model.prepare_image(f"{args.data_root}/{object_name}/train/good/{first_image}")
                             features = model.extract_features(img_tensor)
-                                         
+                        
                         anomaly_scores, time_memorybank, time_inference = run_anomaly_detection(
                                                                                 model,
                                                                                 object_name,
@@ -138,9 +161,11 @@ if __name__=="__main__":
                                                                                 rotation = rotation_default[object_name],
                                                                                 seed = seed,
                                                                                 save_patch_dists = args.eval_clf, # save patch distances for detection evaluation
-                                                                                save_tiffs = args.eval_segm)      # save anomaly maps as tiffs for segmentation evaluation
+                                                                                save_tiffs = args.eval_segm,
+                                                                                dataset = args.dataset)      # save anomaly maps as tiffs for segmentation evaluation
                         
                         # write anomaly scores and inference times to file
+                        # 寫到.csv檔案
                         for counter, sample in enumerate(anomaly_scores.keys()):
                             anomaly_score = anomaly_scores[sample]
                             inference_time = time_inference[sample]
@@ -155,13 +180,15 @@ if __name__=="__main__":
                 print(f"Finished AD for {len(objects)} objects (seed {seed}), mean inference time: {sum(inference_times)/len(inference_times):.5f} s/sample")
 
                 # evaluate all finished runs and create sample anomaly maps for inspection
+                # 以上都是計算出 image or pixel 的 anomaly score，以下就是開始計算各個指標 ==================================================
+                
                 print(f"=========== Evaluate seed = {seed} ===========")
                 eval_finished_run(args.dataset, 
                                 args.data_root, 
                                 anomaly_maps_dir = results_dir + f"/anomaly_maps/seed={seed}", 
                                 output_dir = results_dir,
                                 seed = seed,
-                                pro_integration_limit = 0.3,
+                                pro_integration_limit = args.fpr,
                                 eval_clf = args.eval_clf,
                                 eval_segm = args.eval_segm)
                 

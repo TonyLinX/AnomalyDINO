@@ -94,10 +94,24 @@ def get_dataset_info(dataset, preprocess):
                             "zipper": ["broken_teeth", "combined", "fabric_border", "fabric_interior", "rough", "split_teeth", "squeezed_teeth"]
                             }
 
+        '''
+        項目	     Agnostic	                                           Informed
+        定義	    不知道資料會有哪些旋轉或變化 → 所以預設都做 rotation        已知資料會對齊好或不該做旋轉 → 不做 rotation
+        使用情境    沒有預先控制拍攝流程，如自動工廠影像、unknown pipeline	    可以控制拍照角度或固定設備，如醫療影像、工業品定位拍攝
+        優點	   更有彈性，適應未知變化	                                可以避免不必要的 augmentation，節省推論時間
+        '''
         if preprocess in ["agnostic", "informed", "masking_only"]:
             # Define Masking for the different objects -> determine with Masking Test (see Fig. 2 and discussion in the paper)
             # True: default masking (threshold the first PCA component > 10)
             # False: No masking will be applied
+            '''
+            定義：
+            Mask 是一種在推論階段，只保留圖片中感興趣的物體部分、去除背景的方法。
+
+            目的：
+            因為 few-shot 設定下，只用少量正常樣本建 memory bank，這些樣本往往不足以涵蓋背景的變化。
+            因此背景會導致 false positive（誤判為異常），尤其是背景髒污、紋理、陰影變化等容易干擾模型。
+            '''
             masking_default = {"bottle": False,      
                                 "cable": False,         # no masking
                                 "capsule": True,        # default masking
@@ -114,8 +128,16 @@ def get_dataset_info(dataset, preprocess):
                                 "wood": False,
                                 "zipper": False
                                 }
-            
+        
+        
         if preprocess in ["informed", "informed_no_mask"]:
+            '''
+            定義：
+            對正常樣本做旋轉 augmentation（例如轉 90°, 180°），增加 memory bank 的多樣性。
+
+            目的：
+            某些類別（如 MVTec-AD 中的 Screw）在測試時會以各種角度出現。若 memory bank 裡只含單一角度，這些旋轉會被錯誤地視為異常。
+            '''
             rotation_default = {"bottle": False,
                                 "cable": False, 
                                 "capsule": False,
@@ -165,6 +187,20 @@ def get_dataset_info(dataset, preprocess):
         if preprocess in ["agnostic", "agnostic_no_mask"]:
             rotation_default = {o: True for o in objects}
         elif preprocess in ["informed", "masking_only", "informed_no_mask"]:
+            rotation_default = {o: False for o in objects}
+            
+    elif dataset == "MVTec2":
+        objects = ["can", "fabric", "fruit_jelly", "rice", "sheet_metal", "vial", "wallplugs", "walnuts"]
+        object_anomalies = {o: ["bad"] for o in objects}
+
+        if preprocess in ["informed_no_mask", "agnostic_no_mask"]:
+            masking_default = {o: False for o in objects}
+        else:
+            masking_default = {o: True for o in objects}
+
+        if preprocess in ["agnostic", "agnostic_no_mask"]:
+            rotation_default = {o: True for o in objects}
+        else:
             rotation_default = {o: False for o in objects}
     else:
         raise ValueError(f"Dataset '{dataset}' not yet covered!")

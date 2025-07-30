@@ -1,0 +1,23 @@
+
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "AnomalyDINO Debug",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_anomalydino.py",
+      "console": "integratedTerminal",
+      "args": [
+        "--dataset", "MVTec",
+        "--resolution", "224",
+        "--fpr", "0.30",
+        "--shots", "1",
+        "--num_seeds", "1",
+        "--preprocess", "informed",
+        "--data_root", "data/mvtec_anomaly_detection",
+        "--debug", "True"
+      ]
+    }
+  ]
+}

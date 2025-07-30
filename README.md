@@ -33,6 +33,9 @@ Alternatively, prepare your own dataset accordingly:
     │   ├── ...
     ```
 
+3. Download and prepare the datasets [MVTec-AD](https://www.mvtec.com/company/research/datasets/mvtec-ad), [MVTec AD 2](https://www.mvtec.com/company/research/datasets/mvtec-ad-2) and [VisA](https://github.com/amazon-science/spot-diff) from their official sources.
+For VisA, follow the instruction in the official repo to organize the data in the official 1-class splits.
+The default data roots are `data/mvtec_anomaly_detection` for MVTec-AD, `data/mvtec_ad_2` for MVTec AD 2, and `data/VisA_pytorch/1cls/` for VisA.
 
 ## Usage
 
@@ -47,6 +50,10 @@ The preprocessing to your dataset can be specified in `src/utils.py` in `get_dat
 The results for the default setting, i.e., all considered shots, three repetitions, and agnostic preprocessing, can be reproduced by calling:
 ```shell
 python run_anomalydino.py --dataset MVTec --shots 1 2 4 8 16 --num_seeds 3 --preprocess agnostic --data_root data/mvtec_anomaly_detection
+```
+
+```shell
+python run_anomalydino.py --dataset MVTec2 --shots 1 2 4 8 16 --num_seeds 3 --preprocess agnostic --data_root data/mvtec_ad_2
 ```
 
 ```shell
@@ -69,6 +76,11 @@ To reproduce the results in the *batched* zero-shot scenario, run `run_anomalydi
 ```shell
 python run_anomalydino_batched.py --dataset MVTec --data_root data/mvtec_anomaly_detection
 ```
+
+```shell
+python run_anomalydino_batched.py --dataset MVTec2 --data_root data/mvtec_ad_2
+```
+
 ```shell
 python run_anomalydino_batched.py --dataset VisA --data_root data/VisA_pytorch/1cls/
 ```
@@ -78,6 +90,7 @@ python run_anomalydino_batched.py --dataset VisA --data_root data/VisA_pytorch/1
 This work uses the following ressources and datasets:
 - [DINOv2](https://github.com/facebookresearch/dinov2), code and model available under Apache 2.0 license.
 - The [MVTec-AD dataset](https://www.mvtec.com/company/research/datasets/mvtec-ad), available under the CC BY-NC-SA 4.0 license.
+- The [MVTec AD 2 dataset](https://www.mvtec.com/company/research/datasets/mvtec-ad-2), available under the CC BY-NC-SA 4.0 license.
 - The [VisA dataset](https://github.com/amazon-science/spot-diff), available under the CC BY 4.0 license.
 
 ---

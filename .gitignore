@@ -15,6 +15,7 @@ data_utils/*
 paper_plots*/
 paper_tables*/
 results*/
+results_MVTec2/
 *personal.ipynb
 feature_extraction.ipynb
 src/__pycache__/
