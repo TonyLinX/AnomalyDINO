@@ -314,7 +314,7 @@ def max_anomaly_map(distances, img_size):
     return np.max(anomaly_map)
 
 
-def eval_segmentation(gt_filenames, prediction_filenames, pro_integration_limit=0.3, delete_tiff_files=True):
+def eval_segmentation(gt_filenames, prediction_filenames, pro_integration_limit=0.3, delete_tiff_files=False):
     # Read all ground truth and anomaly images.
     ground_truth = []
     predictions = []
