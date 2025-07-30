@@ -9,7 +9,7 @@ import csv
 from src.utils import get_dataset_info
 from src.detection import run_anomaly_detection
 from src.post_eval import eval_finished_run
-from src.visualize import create_sample_plots
+from src.visualize import create_sample_plots, create_heat_map
 from src.backbones import get_model
 from MVTecAD2_public_code_utils.mvtec_ad_2_public_offline import MVTecAD2
 
@@ -47,6 +47,7 @@ def parse_args():
     parser.add_argument("--device", default='cuda:0')
     parser.add_argument("--warmup_iters", type=int, default=25, help="Number of warmup iterations, relevant when benchmarking inference time.")
     parser.add_argument("--fpr", type=float, default=0.30, help="AUPRO False Postive Rate.")
+    parser.add_argument("--heat_map", default=True, help="Save_heat_map")
     parser.add_argument("--debug", default=False, help="Debug.")
     
     parser.add_argument("--tag", help="Optional tag for the saving directory.")
@@ -197,7 +198,14 @@ if __name__=="__main__":
                                     seed = seed,
                                     dataset = args.dataset, 
                                     data_root = args.data_root)
-            
+                
+                if args.heat_map:
+                    create_heat_map(results_dir, 
+                                    anomaly_maps_dir = results_dir + f"/anomaly_maps/seed={seed}", 
+                                    seed = seed,
+                                    dataset = args.dataset, 
+                                    data_root = args.data_root)
+
                 # deactivate creation of examples for the next seeds...
                 save_examples = False 
 

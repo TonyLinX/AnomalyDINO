@@ -115,3 +115,55 @@ def create_sample_plots(experiment_path, anomaly_maps_dir, seed, dataset, data_r
         plt.tight_layout()
         plt.savefig(f"{experiment_path}/{object_name}/anomaly_maps_examples_seed={seed}.png")
         plt.close()
+
+def create_heat_map(experiment_path, anomaly_maps_dir, seed, dataset, data_root):
+    """Create heat map overlays of ground truth masks on test images.
+
+    Parameters
+    ----------
+    dataset : str
+        Name of the dataset (e.g. "MVTec", "MVTec2").
+    data_root : str (--data_root data/mvtec_ad_2)
+        Root path of the dataset.
+    output_dir : str
+        Directory where the overlay images will be saved.
+    """
+    
+    print(f"=========== Save Heat_Map ===========")
+    objects, object_anomalies, _, _ = get_dataset_info(dataset, preprocess="informed")
+
+    for object_name in tqdm(objects, desc="Create heat maps"):
+        for anomaly_type in object_anomalies[object_name]:
+            if dataset == "MVTec2":
+                img_dir = os.path.join(data_root, object_name, "test_public", anomaly_type)
+                gt_dir = os.path.join(data_root, object_name, "test_public", "ground_truth", anomaly_type)
+            else:
+                img_dir = os.path.join(data_root, object_name, "test", anomaly_type)
+                gt_dir = os.path.join(data_root, object_name, "ground_truth", anomaly_type)
+
+            if not os.path.exists(img_dir):
+                continue
+            save_path = f"{experiment_path}/{object_name}/heat_map/{anomaly_type}"
+            os.makedirs(save_path, exist_ok=True)
+            # os.makedirs(os.path.join(output_dir, object_name, anomaly_type), exist_ok=True)
+            
+            for img_name in sorted(os.listdir(img_dir)):
+                if not img_name.lower().endswith((".png", ".jpg", ".jpeg", ".bmp", ".tiff")):
+                    continue
+                img_path = os.path.join(img_dir, img_name)
+                mask_name = os.path.splitext(img_name)[0] + "_mask.png"
+                mask_path = os.path.join(gt_dir, mask_name)
+                if not os.path.exists(mask_path):
+                    continue
+
+                img = Image.open(img_path).convert("RGBA")
+                mask = Image.open(mask_path).convert("L")
+                mask_arr = np.array(mask)
+                overlay = Image.new("RGBA", img.size, (255, 0, 0, 0))
+                overlay_arr = np.array(overlay)
+                overlay_arr[..., 3] = (mask_arr > 0) * 128  # semi-transparent
+                overlay = Image.fromarray(overlay_arr, mode="RGBA")
+                heat_img = Image.alpha_composite(img, overlay).convert("RGB")
+                
+                save_img_path = os.path.join(save_path, img_name)
+                heat_img.save(save_img_path)                

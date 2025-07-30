@@ -223,7 +223,7 @@ def run_anomaly_detection(
                 if save_tiffs:
                     # 就是這裡就是把 patch score 轉成 pixel score
                     anomaly_map = dists2map(d_masked, image_test.shape)
-                    print(f"Tiff save path: {plots_dir}/anomaly_maps/seed={seed}/{object_name}/{test_split}/{type_anomaly}/{img_test_nr}.tiff")
+                    # print(f"Tiff save path: {plots_dir}/anomaly_maps/seed={seed}/{object_name}/{test_split}/{type_anomaly}/{img_test_nr}.tiff")
                     tiff.imwrite(f"{plots_dir}/anomaly_maps/seed={seed}/{object_name}/{test_split}/{type_anomaly}/{img_test_nr}.tiff", anomaly_map)
                 if save_patch_dists:
                     np.save(f"{plots_dir}/anomaly_maps/seed={seed}/{object_name}/{test_split}/{type_anomaly}/{img_test_nr}.npy", d_masked)
