@@ -143,10 +143,10 @@ def create_heat_map(experiment_path, anomaly_maps_dir, seed, dataset, data_root)
 
             if not os.path.exists(img_dir):
                 continue
+
             save_path = f"{experiment_path}/{object_name}/heat_map/{anomaly_type}"
             os.makedirs(save_path, exist_ok=True)
-            # os.makedirs(os.path.join(output_dir, object_name, anomaly_type), exist_ok=True)
-            
+
             for img_name in sorted(os.listdir(img_dir)):
                 if not img_name.lower().endswith((".png", ".jpg", ".jpeg", ".bmp", ".tiff")):
                     continue
@@ -156,14 +156,20 @@ def create_heat_map(experiment_path, anomaly_maps_dir, seed, dataset, data_root)
                 if not os.path.exists(mask_path):
                     continue
 
+                # === Load 原圖與遮罩 ===
                 img = Image.open(img_path).convert("RGBA")
                 mask = Image.open(mask_path).convert("L")
                 mask_arr = np.array(mask)
+
+                # === 建立紅色 overlay，alpha 根據 mask ===
                 overlay = Image.new("RGBA", img.size, (255, 0, 0, 0))
                 overlay_arr = np.array(overlay)
-                overlay_arr[..., 3] = (mask_arr > 0) * 128  # semi-transparent
+                overlay_arr[..., 3] = (mask_arr > 0) * 128
                 overlay = Image.fromarray(overlay_arr, mode="RGBA")
+
+                # === 疊圖 ===
                 heat_img = Image.alpha_composite(img, overlay).convert("RGB")
                 
+                # === 儲存圖片 ===
                 save_img_path = os.path.join(save_path, img_name)
-                heat_img.save(save_img_path)                
+                Image.fromarray(heat_np).save(save_img_path)

@@ -84,9 +84,9 @@ if __name__=="__main__":
         save_examples = args.save_examples 
         
         if args.debug == False:
-            results_dir = f"results_{args.dataset}/{args.model_name}_{args.resolution}/{shot}-shot_preprocess={args.preprocess}_AUPRO={args.fpr}_k={args.k_neighbors}"
+            results_dir = f"results_{args.dataset}/{args.model_name}_{args.resolution}/{shot}-shot_preprocess={args.preprocess}_AUPRO={args.fpr}_k={args.k_neighbors}_nomask"
         else:
-            results_dir = f"results_{args.dataset}/debug/{args.model_name}_{args.resolution}/{shot}-shot_preprocess={args.preprocess}_AUPRO={args.fpr}_k={args.k_neighbors}"
+            results_dir = f"results_{args.dataset}/debug/{args.model_name}_{args.resolution}/{shot}-shot_preprocess={args.preprocess}_AUPRO={args.fpr}_k={args.k_neighbors}_nomask"
         
         if args.tag != None:
             results_dir += "_" + args.tag

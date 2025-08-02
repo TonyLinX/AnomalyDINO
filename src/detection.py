@@ -174,7 +174,7 @@ def run_anomaly_detection(
                     mask2 = model.compute_background_mask(features2, grid_size2, threshold=10, masking_type=masking)
                 else:
                     mask2 = np.ones(features2.shape[0], dtype=bool)
-                if save_examples and idx < 3:
+                if save_examples:
                     vis_image_test_background = model.get_embedding_visualization(features2, grid_size2, mask2)
 
                 # Discard irrelevant features
@@ -225,11 +225,41 @@ def run_anomaly_detection(
                     anomaly_map = dists2map(d_masked, image_test.shape)
                     # print(f"Tiff save path: {plots_dir}/anomaly_maps/seed={seed}/{object_name}/{test_split}/{type_anomaly}/{img_test_nr}.tiff")
                     tiff.imwrite(f"{plots_dir}/anomaly_maps/seed={seed}/{object_name}/{test_split}/{type_anomaly}/{img_test_nr}.tiff", anomaly_map)
+                    
+                    # 建立輸出資料夾
+                    heat_map_dir = f"{plots_dir}/{object_name}/heat_map/{type_anomaly}"
+                    os.makedirs(heat_map_dir, exist_ok=True)
+
+                    # ====== Normalize anomaly map ======
+                    norm_map = anomaly_map - anomaly_map.min()
+                    if norm_map.max() > 0:
+                        norm_map = norm_map / norm_map.max()
+
+                    # Optional gamma 調整（讓高值更突出）
+                    norm_map = np.power(norm_map, 0.5)
+
+                    # ====== Resize to match image ======
+                    norm_map_resized = cv2.resize(norm_map, (image_test.shape[1], image_test.shape[0]))
+
+                    # ====== Apply colormap ======
+                    heat_map_color = cv2.applyColorMap((norm_map_resized * 255).astype(np.uint8), cv2.COLORMAP_JET)
+
+                    # ====== Convert input image to BGR ======
+                    image_bgr = cv2.cvtColor(image_test, cv2.COLOR_RGB2BGR)
+
+                    # ====== Overlay heatmap onto original image ======
+                    overlay = cv2.addWeighted(image_bgr, 0.5, heat_map_color, 0.5, 0)
+
+                    # ====== Save overlay ======
+                    save_path = f"{heat_map_dir}/{img_test_nr}_pd.png"
+                    cv2.imwrite(save_path, overlay)
+                    # print(f"✅ Saved overlay to {save_path}")
+                    
                 if save_patch_dists:
                     np.save(f"{plots_dir}/anomaly_maps/seed={seed}/{object_name}/{test_split}/{type_anomaly}/{img_test_nr}.npy", d_masked)
 
                 # Save some example plots (3 per anomaly type)
-                if save_examples and idx < 3:
+                if save_examples:
 
                     fig, (ax1, ax2, ax3, ax4,) = plt.subplots(1, 4, figsize=(18, 4.5))
 

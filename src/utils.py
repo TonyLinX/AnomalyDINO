@@ -196,7 +196,7 @@ def get_dataset_info(dataset, preprocess):
         if preprocess in ["informed_no_mask", "agnostic_no_mask"]:
             masking_default = {o: False for o in objects}
         else:
-            masking_default = {o: True for o in objects}
+            masking_default = {o: False for o in objects}
 
         if preprocess in ["agnostic", "agnostic_no_mask"]:
             rotation_default = {o: True for o in objects}
