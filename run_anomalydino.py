@@ -137,7 +137,7 @@ if __name__=="__main__":
                         '''
                         for _ in trange(args.warmup_iters, desc="CUDA warmup", leave=False):
                             if args.dataset == "MVTec2":
-                                warmup_ds = MVTecAD2(object_name, "train")
+                                warmup_ds = MVTecAD2(object_name, "train", args.data_root)
                                 first_image = warmup_ds.image_paths[0]
                             else:
                                 first_image = f"{args.data_root}/{object_name}/train/good/" + os.listdir(f"{args.data_root}/{object_name}/train/good")[0]

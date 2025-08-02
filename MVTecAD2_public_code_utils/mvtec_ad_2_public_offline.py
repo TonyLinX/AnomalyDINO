@@ -44,6 +44,7 @@ class MVTecAD2(Dataset):
         self,
         mad2_object,
         split,
+        data_root,
         transform=to_tensor,
     ):
         assert split in {
@@ -62,7 +63,7 @@ class MVTecAD2(Dataset):
         self.split = split
         self.transform = transform
 
-        self._image_base_dir = PATH_TO_MVTEC_AD_2_FOLDER
+        self._image_base_dir = data_root
 
         self._object_dir = os.path.join(self._image_base_dir, mad2_object)
         # get all images from the split

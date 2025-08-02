@@ -1,7 +1,7 @@
 *venv/
 dev/
 
-data/mvtec_ad_2/can
+data/mvtec_ad_2/cand
 data/mvtec_ad_2/fabric
 data/mvtec_ad_2/fruit_jelly
 data/mvtec_ad_2/rice
@@ -11,7 +11,9 @@ data/mvtec_ad_2/wallplugs
 data/mvtec_ad_2/walnuts
 data/mvtec_ad_2/license.txt
 data/mvtec_anomaly_detection/*
+data/debug_dataset
 data_utils/*
+
 paper_plots*/
 paper_tables*/
 results*/

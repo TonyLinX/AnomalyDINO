@@ -169,7 +169,18 @@ def create_heat_map(experiment_path, anomaly_maps_dir, seed, dataset, data_root)
 
                 # === 疊圖 ===
                 heat_img = Image.alpha_composite(img, overlay).convert("RGB")
-                
+
+                # === 加上網格 ===
+                heat_np = np.array(heat_img)  # PIL → np.array
+                h, w = heat_np.shape[:2]
+                grid_size = 14
+                for x in range(0, w, grid_size):
+                    cv2.line(heat_np, (x, 0), (x, h), (0, 255, 0), 1)
+                for y in range(0, h, grid_size):
+                    cv2.line(heat_np, (0, y), (w, y), (0, 255, 0), 1)
+
                 # === 儲存圖片 ===
+                print(img_name)
+                img_name = os.path.splitext(img_name)[0] + "_2_gt.png"
                 save_img_path = os.path.join(save_path, img_name)
                 Image.fromarray(heat_np).save(save_img_path)

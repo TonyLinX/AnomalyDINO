@@ -69,7 +69,7 @@ def run_anomaly_detection(
     test_split = "test_public" if dataset == "MVTec2" else "test"
     img_ref_folder = f"{data_root}/{object_name}/train/good/"
     if dataset == "MVTec2":
-        dataset_train = MVTecAD2(object_name, "train")
+        dataset_train = MVTecAD2(object_name, "train", data_root)
         img_ref_paths = dataset_train.image_paths
         if n_ref_samples == -1:
             img_ref_samples = img_ref_paths
@@ -150,7 +150,7 @@ def run_anomaly_detection(
         # Evaluate anomalies for each anomaly type (and "good")
         for type_anomaly in tqdm(type_anomalies, desc = f"processing test samples ({object_name})"):
             if dataset == "MVTec2":
-                dataset_test = MVTecAD2(object_name, "test_public")
+                dataset_test = MVTecAD2(object_name, "test_public", data_root)
                 test_paths = [p for p in dataset_test.image_paths if f"/{type_anomaly}/" in p]
             else:
                 data_dir = f"{data_root}/{object_name}/{test_split}/{type_anomaly}"
@@ -251,46 +251,26 @@ def run_anomaly_detection(
                     overlay = cv2.addWeighted(image_bgr, 0.5, heat_map_color, 0.5, 0)
 
                     # ====== Save overlay ======
-                    save_path = f"{heat_map_dir}/{img_test_nr}_pd.png"
+                    save_path = f"{heat_map_dir}/{img_test_nr}_3_pd.png"
                     cv2.imwrite(save_path, overlay)
-                    # print(f"✅ Saved overlay to {save_path}")
+                    
+                    # ===== 儲存原始測試圖片 =====
+                    cv2.imwrite(f"{heat_map_dir}/{img_test_nr}_1_.png", image_bgr)
+
+                    # ===== 儲存 patch score 直方圖 =====
+                    fig, ax = plt.subplots(figsize=(5, 4))
+                    ax.hist(d_masked.flatten(), bins=50, color="skyblue", edgecolor="black")
+                    ax.set_title("Histogram of Patch Distances")
+                    ax.set_xlabel("Distance")
+                    ax.set_ylabel("Count")
+                    plt.tight_layout()
+                    plt.savefig(f"{heat_map_dir}/{img_test_nr}_4_hist.png")
+                    plt.close()
+                    
                     
                 if save_patch_dists:
                     np.save(f"{plots_dir}/anomaly_maps/seed={seed}/{object_name}/{test_split}/{type_anomaly}/{img_test_nr}.npy", d_masked)
 
-                # Save some example plots (3 per anomaly type)
-                if save_examples:
-
-                    fig, (ax1, ax2, ax3, ax4,) = plt.subplots(1, 4, figsize=(18, 4.5))
-
-                    # plot test image, PCA + mask
-                    ax1.imshow(image_test)
-                    ax2.imshow(vis_image_test_background)  
-
-                    # plot patch distances 
-                    d_masked[~mask2.reshape(grid_size2)] = 0.0
-                    plt.colorbar(ax3.imshow(d_masked), ax=ax3, fraction=0.12, pad=0.05, orientation="horizontal")
-                    
-                    # compute image level anomaly score (mean(top 1%) of patches = empirical tail value at risk for quantile 0.99)
-                    score_top1p = mean_top1p(distances)
-                    ax4.axvline(score_top1p, color='r', linestyle='dashed', linewidth=1, label=round(score_top1p, 2))
-                    ax4.legend()
-                    ax4.hist(distances.flatten())
-
-                    ax1.axis('off')
-                    ax2.axis('off')
-                    ax3.axis('off')
-
-                    ax1.title.set_text("Test")
-                    ax2.title.set_text("Test (PCA + Mask)")
-                    ax3.title.set_text("Patch Distances (1NN)")
-                    ax4.title.set_text("Hist of Distances")
-
-                    plt.suptitle(f"Object: {object_name}, Type: {type_anomaly}, img = ...{image_test_path[-20:]}, object patches = {mask2.sum()}/{mask2.size}")
-
-                    plt.tight_layout()
-                    plt.savefig(f"{plots_dir}/{object_name}/examples/example_{type_anomaly}_{idx}.png")
-                    plt.close()
                     
     # 回傳這個物件所有異常 type 的所有圖片的 anomaly score
     
